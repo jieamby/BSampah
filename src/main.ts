@@ -32,19 +32,20 @@ async function bootstrap() {
    |--------------------------------------------------------------------------
    */
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:5173'],
+    origin: [
+      'http://localhost:3001',
+      'http://localhost:5173',
+      'https://bsampah-api.vercel.app',
+    ],
 
     credentials: true,
   });
 
   app.setGlobalPrefix('api');
 
-  app.useStaticAssets(
-  join(__dirname, '..', 'uploads'),
-  {
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
-  },
-);
+  });
 
   app.getHttpAdapter().getInstance().disable('x-powered-by');
 
@@ -61,10 +62,10 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-    transform: true,
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
@@ -108,6 +109,7 @@ async function bootstrap() {
   console.log(`🚀 Backend running on http://localhost:${port}/api`);
 
   console.log(`📘 Swagger running on http://localhost:${port}/docs`);
+  return app;
 }
 
-bootstrap();
+export default bootstrap();
