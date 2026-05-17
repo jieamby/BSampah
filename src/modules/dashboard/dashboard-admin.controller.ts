@@ -1,10 +1,5 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Query,
-  Body,
-  UseGuards,
+  Controller, Get, Post, Query, Body, UseGuards, Request,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -24,43 +19,43 @@ export class DashboardAdminController {
 
   @ApiOperation({ summary: 'Overview Dashboard' })
   @Get('overview')
-  getOverview(@Query() query: DashboardQueryDto) {
-    return this.adminService.getOverview(query);
+  getOverview(@Query() query: DashboardQueryDto, @Request() req: any) {
+    return this.adminService.getOverview(req.user.companyId, query);
   }
 
   @ApiOperation({ summary: 'Ringkasan per Jenis Sampah' })
   @Get('waste-summary')
-  getWasteSummary(@Query() query: DashboardQueryDto) {
-    return this.adminService.getWasteSummary(query);
+  getWasteSummary(@Query() query: DashboardQueryDto, @Request() req: any) {
+    return this.adminService.getWasteSummary(req.user.companyId, query);
   }
 
   @ApiOperation({ summary: 'Ringkasan per Customer (Top Depositor)' })
   @Get('customer-summary')
-  getCustomerSummary(@Query() query: DashboardQueryDto) {
-    return this.adminService.getCustomerSummary(query);
+  getCustomerSummary(@Query() query: DashboardQueryDto, @Request() req: any) {
+    return this.adminService.getCustomerSummary(req.user.companyId, query);
   }
 
   @ApiOperation({ summary: 'Ringkasan per Kategori' })
   @Get('category-summary')
-  getCategorySummary(@Query() query: DashboardQueryDto) {
-    return this.adminService.getCategorySummary(query);
+  getCategorySummary(@Query() query: DashboardQueryDto, @Request() req: any) {
+    return this.adminService.getCategorySummary(req.user.companyId, query);
   }
 
   @ApiOperation({ summary: 'Trend Bulanan' })
   @Get('monthly-trend')
-  getMonthlyTrend(@Query() query: DashboardQueryDto) {
-    return this.adminService.getMonthlyTrend(query);
+  getMonthlyTrend(@Query() query: DashboardQueryDto, @Request() req: any) {
+    return this.adminService.getMonthlyTrend(req.user.companyId, query);
   }
 
   @ApiOperation({ summary: 'Status Deposit (Pie Chart)' })
   @Get('deposit-status')
-  getDepositStatus(@Query() query: DashboardQueryDto) {
-    return this.adminService.getDepositStatusSummary(query);
+  getDepositStatus(@Query() query: DashboardQueryDto, @Request() req: any) {
+    return this.adminService.getDepositStatusSummary(req.user.companyId, query);
   }
 
   @ApiOperation({ summary: 'Generate & Simpan Laporan' })
   @Post('generate-report')
-  generateReport(@Body() dto: GenerateReportDto) {
-    return this.adminService.generateReport(dto);
+  generateReport(@Body() dto: GenerateReportDto, @Request() req: any) {
+    return this.adminService.generateReport(req.user.companyId, dto);
   }
 }

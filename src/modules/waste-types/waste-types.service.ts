@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../../database/database';
 import { wasteTypes } from '../../database/schema/waste-types.schema';
 import { categories } from '../../database/schema/categories.schema';
@@ -12,8 +8,7 @@ import { UpdateWasteTypeDto } from './dto/update-waste-type.dto';
 
 @Injectable()
 export class WasteTypesService {
-  async create(dto: CreateWasteTypeDto) {
-    // Validasi category exists
+  async create(dto: CreateWasteTypeDto, companyId: string) {
     const category = await db
       .select()
       .from(categories)
@@ -27,6 +22,7 @@ export class WasteTypesService {
       .insert(wasteTypes)
       .values({
         name: dto.name,
+        companyId,
         categoryId: dto.categoryId,
         description: dto.description,
         pricePerKg: String(dto.pricePerKg),
@@ -37,7 +33,7 @@ export class WasteTypesService {
     return wasteType[0];
   }
 
-  async findAll() {
+  async findAll(companyId: string) {
     return db
       .select({
         id: wasteTypes.id,
@@ -55,10 +51,12 @@ export class WasteTypesService {
       })
       .from(wasteTypes)
       .leftJoin(categories, eq(wasteTypes.categoryId, categories.id))
-      .where(eq(wasteTypes.isActive, true));
+      .where(
+        and(eq(wasteTypes.isActive, true), eq(wasteTypes.companyId, companyId)),
+      );
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const result = await db
       .select({
         id: wasteTypes.id,
@@ -76,7 +74,7 @@ export class WasteTypesService {
       })
       .from(wasteTypes)
       .leftJoin(categories, eq(wasteTypes.categoryId, categories.id))
-      .where(eq(wasteTypes.id, id));
+      .where(and(eq(wasteTypes.id, id), eq(wasteTypes.companyId, companyId)));
 
     if (!result[0]) {
       throw new NotFoundException('Waste type not found');
@@ -85,8 +83,8 @@ export class WasteTypesService {
     return result[0];
   }
 
-  async update(id: string, dto: UpdateWasteTypeDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateWasteTypeDto, companyId: string) {
+    await this.findOne(id, companyId);
 
     if (dto.categoryId) {
       const category = await db
@@ -107,19 +105,19 @@ export class WasteTypesService {
     const wasteType = await db
       .update(wasteTypes)
       .set(data)
-      .where(eq(wasteTypes.id, id))
+      .where(and(eq(wasteTypes.id, id), eq(wasteTypes.companyId, companyId)))
       .returning();
 
     return wasteType[0];
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, companyId: string) {
+    await this.findOne(id, companyId);
 
     await db
       .update(wasteTypes)
       .set({ isActive: false })
-      .where(eq(wasteTypes.id, id));
+      .where(and(eq(wasteTypes.id, id), eq(wasteTypes.companyId, companyId)));
 
     return { message: 'Waste type deleted' };
   }

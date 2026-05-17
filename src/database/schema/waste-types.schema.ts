@@ -7,10 +7,14 @@ import {
   boolean,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import { companies } from './companies.schema';
 import { categories } from './categories.schema';
 
 export const wasteTypes = pgTable('waste_types', {
   id: uuid('id').defaultRandom().primaryKey(),
+  companyId: uuid('company_id')
+    .notNull()
+    .references(() => companies.id),
   name: varchar('name', { length: 100 }).notNull(),
   categoryId: uuid('category_id')
     .notNull()

@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   ParseUUIDPipe,
+  Request,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -24,20 +25,20 @@ export class DepositsController {
 
   @ApiOperation({ summary: 'Create Deposit' })
   @Post()
-  create(@Body() dto: CreateDepositDto) {
-    return this.depositsService.create(dto);
+  create(@Body() dto: CreateDepositDto, @Request() req: any) {
+    return this.depositsService.create(dto, req.user.companyId);
   }
 
   @ApiOperation({ summary: 'Get All Deposits' })
   @Get()
-  findAll() {
-    return this.depositsService.findAll();
+  findAll(@Request() req: any) {
+    return this.depositsService.findAll(req.user.companyId);
   }
 
   @ApiOperation({ summary: 'Get Deposit Detail' })
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.depositsService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.depositsService.findOne(id, req.user.companyId);
   }
 
   @ApiOperation({ summary: 'Update Deposit Status' })
@@ -45,13 +46,14 @@ export class DepositsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateDepositDto,
+    @Request() req: any,
   ) {
-    return this.depositsService.update(id, dto);
+    return this.depositsService.update(id, dto, req.user.companyId);
   }
 
   @ApiOperation({ summary: 'Cancel Deposit' })
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.depositsService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.depositsService.remove(id, req.user.companyId);
   }
 }

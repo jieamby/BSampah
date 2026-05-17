@@ -36,29 +36,30 @@ export class AuthService {
    | Generate Tokens
    |--------------------------------------------------------------------------
    */
-  private async generateTokens(userId: string, email: string, role: string) {
+  private async generateTokens(
+    userId: string,
+    email: string,
+    role: string,
+    companyId: string,
+  ) {
     const payload = {
       sub: userId,
       email,
       role,
+      companyId, // ← tambahkan ini
     };
 
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('JWT_ACCESS_SECRET'),
-
       expiresIn: this.configService.get('JWT_ACCESS_EXPIRES'),
     });
 
     const refreshToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('JWT_REFRESH_SECRET'),
-
       expiresIn: this.configService.get('JWT_REFRESH_EXPIRES'),
     });
 
-    return {
-      accessToken,
-      refreshToken,
-    };
+    return { accessToken, refreshToken };
   }
 
   /*
@@ -73,23 +74,28 @@ export class AuthService {
       throw new BadRequestException('Email already exists');
     }
 
+    if (!dto.companyId) {
+      throw new BadRequestException('Company ID is required');
+    }
+
     const hashedPassword = await argon2.hash(dto.password);
 
     const user = await this.usersService.create({
       name: dto.name,
       email: dto.email,
       password: hashedPassword,
-      role: Role.ADMIN,
+      role: dto.role ?? Role.CUSTOMER,
+      companyId: dto.companyId,
     });
 
     return {
       message: 'Register success',
-
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
+        companyId: user.companyId,
       },
     };
   }
@@ -112,7 +118,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.companyId,
+    );
 
     const hashedRefreshToken = await argon2.hash(tokens.refreshToken);
 
@@ -173,8 +184,12 @@ export class AuthService {
       throw new UnauthorizedException('Access denied');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.companyId,
+    );
     const hashedRefreshToken = await argon2.hash(tokens.refreshToken);
 
     await this.usersService.updateRefreshToken(user.id, hashedRefreshToken);

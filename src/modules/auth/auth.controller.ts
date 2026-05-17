@@ -32,6 +32,14 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Post('create-user')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  async createUser(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
   @ApiOperation({ summary: 'Login a user' })
   @ApiResponse({ status: 200, description: 'User logged in successfully' })
   @SkipThrottle()

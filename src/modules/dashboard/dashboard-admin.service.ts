@@ -22,11 +22,9 @@ export class DashboardAdminService {
       endDate = new Date(dto.endDate);
       endDate.setHours(23, 59, 59, 999);
     } else {
-      // Default: bulan berjalan (tanggal 1 → hari ini)
       startDate = new Date();
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
-
       endDate = new Date();
       endDate.setHours(23, 59, 59, 999);
     }
@@ -39,8 +37,7 @@ export class DashboardAdminService {
     return { startDate, endDate };
   }
 
-  // ===== OVERVIEW ADMIN =====
-  async getOverview(dto?: DashboardQueryDto) {
+  async getOverview(companyId: string, dto?: DashboardQueryDto) {
     const { startDate, endDate } = await this.getDateRange(dto);
 
     const [
@@ -56,6 +53,7 @@ export class DashboardAdminService {
       db
         .select({ count: sql`count(*)` })
         .from(customers)
+        .where(eq(customers.companyId, companyId))
         .then((r) => Number(r[0].count)),
 
       db
@@ -63,6 +61,7 @@ export class DashboardAdminService {
         .from(deposits)
         .where(
           and(
+            eq(deposits.companyId, companyId),
             gte(deposits.depositDate, startDate),
             lte(deposits.depositDate, endDate),
           ),
@@ -74,6 +73,7 @@ export class DashboardAdminService {
         .from(transactions)
         .where(
           and(
+            eq(transactions.companyId, companyId),
             gte(transactions.createdAt, startDate),
             lte(transactions.createdAt, endDate),
           ),
@@ -85,6 +85,7 @@ export class DashboardAdminService {
         .from(deposits)
         .where(
           and(
+            eq(deposits.companyId, companyId),
             eq(deposits.status, 'completed'),
             gte(deposits.depositDate, startDate),
             lte(deposits.depositDate, endDate),
@@ -98,6 +99,7 @@ export class DashboardAdminService {
         .leftJoin(deposits, eq(depositItems.depositId, deposits.id))
         .where(
           and(
+            eq(deposits.companyId, companyId),
             eq(deposits.status, 'completed'),
             gte(deposits.depositDate, startDate),
             lte(deposits.depositDate, endDate),
@@ -108,18 +110,29 @@ export class DashboardAdminService {
       db
         .select({ count: sql`count(*)` })
         .from(wasteTypes)
-        .where(eq(wasteTypes.isActive, true))
+        .where(
+          and(
+            eq(wasteTypes.companyId, companyId),
+            eq(wasteTypes.isActive, true),
+          ),
+        )
         .then((r) => Number(r[0].count)),
 
       db
         .select({ count: sql`count(*)` })
         .from(wasteTypes)
+        .where(eq(wasteTypes.companyId, companyId))
         .then((r) => Number(r[0].count)),
 
       db
         .select({ count: sql`count(*)` })
         .from(categories)
-        .where(eq(categories.isActive, true))
+        .where(
+          and(
+            eq(categories.companyId, companyId),
+            eq(categories.isActive, true),
+          ),
+        )
         .then((r) => Number(r[0].count)),
     ]);
 
@@ -133,21 +146,15 @@ export class DashboardAdminService {
         totalRevenue,
         totalWeight,
       },
-      wasteTypes: {
-        active: activeWasteTypes,
-        total: totalWasteTypes,
-      },
-      categories: {
-        total: totalCategories,
-      },
+      wasteTypes: { active: activeWasteTypes, total: totalWasteTypes },
+      categories: { total: totalCategories },
     };
   }
 
-  // ===== RINGKASAN PER JENIS SAMPAH =====
-  async getWasteSummary(dto?: DashboardQueryDto) {
+  async getWasteSummary(companyId: string, dto?: DashboardQueryDto) {
     const { startDate, endDate } = await this.getDateRange(dto);
 
-    const results = await db
+    return db
       .select({
         wasteTypeId: wasteTypes.id,
         wasteTypeName: wasteTypes.name,
@@ -162,6 +169,7 @@ export class DashboardAdminService {
       .leftJoin(categories, eq(wasteTypes.categoryId, categories.id))
       .where(
         and(
+          eq(deposits.companyId, companyId),
           eq(deposits.status, 'completed'),
           gte(deposits.depositDate, startDate),
           lte(deposits.depositDate, endDate),
@@ -169,15 +177,12 @@ export class DashboardAdminService {
       )
       .groupBy(wasteTypes.id, wasteTypes.name, categories.name)
       .orderBy(sql`COALESCE(SUM(${depositItems.weight}), 0) DESC`);
-
-    return results;
   }
 
-  // ===== RINGKASAN PER CUSTOMER (TOP DEPOSITORS) =====
-  async getCustomerSummary(dto?: DashboardQueryDto) {
+  async getCustomerSummary(companyId: string, dto?: DashboardQueryDto) {
     const { startDate, endDate } = await this.getDateRange(dto);
 
-    const results = await db
+    return db
       .select({
         customerId: customers.id,
         customerCode: customers.customerCode,
@@ -193,6 +198,7 @@ export class DashboardAdminService {
       .leftJoin(depositItems, eq(deposits.id, depositItems.depositId))
       .where(
         and(
+          eq(customers.companyId, companyId),
           eq(deposits.status, 'completed'),
           gte(deposits.depositDate, startDate),
           lte(deposits.depositDate, endDate),
@@ -207,15 +213,12 @@ export class DashboardAdminService {
       )
       .orderBy(sql`COALESCE(SUM(${deposits.totalAmount}), 0) DESC`)
       .limit(20);
-
-    return results;
   }
 
-  // ===== RINGKASAN PER KATEGORI =====
-  async getCategorySummary(dto?: DashboardQueryDto) {
+  async getCategorySummary(companyId: string, dto?: DashboardQueryDto) {
     const { startDate, endDate } = await this.getDateRange(dto);
 
-    const results = await db
+    return db
       .select({
         categoryName: categories.name,
         totalWeight: sql<number>`COALESCE(SUM(${depositItems.weight}), 0)`,
@@ -228,6 +231,7 @@ export class DashboardAdminService {
       .leftJoin(categories, eq(wasteTypes.categoryId, categories.id))
       .where(
         and(
+          eq(deposits.companyId, companyId),
           eq(deposits.status, 'completed'),
           gte(deposits.depositDate, startDate),
           lte(deposits.depositDate, endDate),
@@ -235,15 +239,12 @@ export class DashboardAdminService {
       )
       .groupBy(categories.name)
       .orderBy(sql`COALESCE(SUM(${depositItems.subtotal}), 0) DESC`);
-
-    return results;
   }
 
-  // ===== TREND BULANAN =====
-  async getMonthlyTrend(dto?: DashboardQueryDto) {
+  async getMonthlyTrend(companyId: string, dto?: DashboardQueryDto) {
     const { startDate, endDate } = await this.getDateRange(dto);
 
-    const results = await db
+    return db
       .select({
         month: sql<string>`DATE_TRUNC('month', "deposits"."deposit_date")`,
         totalDeposits: sql<number>`COUNT("deposits"."id")`,
@@ -254,6 +255,7 @@ export class DashboardAdminService {
       .leftJoin(depositItems, eq(deposits.id, depositItems.depositId))
       .where(
         and(
+          eq(deposits.companyId, companyId),
           eq(deposits.status, 'completed'),
           gte(deposits.depositDate, startDate),
           lte(deposits.depositDate, endDate),
@@ -261,15 +263,12 @@ export class DashboardAdminService {
       )
       .groupBy(sql`DATE_TRUNC('month', "deposits"."deposit_date")`)
       .orderBy(sql`DATE_TRUNC('month', "deposits"."deposit_date")`);
-
-    return results;
   }
 
-  // ===== STATUS DEPOSIT (PIE CHART) =====
-  async getDepositStatusSummary(dto?: DashboardQueryDto) {
+  async getDepositStatusSummary(companyId: string, dto?: DashboardQueryDto) {
     const { startDate, endDate } = await this.getDateRange(dto);
 
-    const results = await db
+    return db
       .select({
         status: deposits.status,
         count: sql<number>`COUNT(${deposits.id})`,
@@ -278,17 +277,15 @@ export class DashboardAdminService {
       .from(deposits)
       .where(
         and(
+          eq(deposits.companyId, companyId),
           gte(deposits.depositDate, startDate),
           lte(deposits.depositDate, endDate),
         ),
       )
       .groupBy(deposits.status);
-
-    return results;
   }
 
-  // ===== GENERATE REPORT (simpan ke tabel reports) =====
-  async generateReport(dto: GenerateReportDto) {
+  async generateReport(companyId: string, dto: GenerateReportDto) {
     const { startDate, endDate } = await this.getDateRange(dto);
 
     const [
@@ -301,6 +298,7 @@ export class DashboardAdminService {
       db
         .select({ count: sql`count(*)` })
         .from(customers)
+        .where(eq(customers.companyId, companyId))
         .then((r) => Number(r[0].count)),
 
       db
@@ -308,6 +306,7 @@ export class DashboardAdminService {
         .from(deposits)
         .where(
           and(
+            eq(deposits.companyId, companyId),
             gte(deposits.depositDate, startDate),
             lte(deposits.depositDate, endDate),
           ),
@@ -319,6 +318,7 @@ export class DashboardAdminService {
         .from(transactions)
         .where(
           and(
+            eq(transactions.companyId, companyId),
             gte(transactions.createdAt, startDate),
             lte(transactions.createdAt, endDate),
           ),
@@ -330,6 +330,7 @@ export class DashboardAdminService {
         .from(deposits)
         .where(
           and(
+            eq(deposits.companyId, companyId),
             eq(deposits.status, 'completed'),
             gte(deposits.depositDate, startDate),
             lte(deposits.depositDate, endDate),
@@ -343,6 +344,7 @@ export class DashboardAdminService {
         .leftJoin(deposits, eq(depositItems.depositId, deposits.id))
         .where(
           and(
+            eq(deposits.companyId, companyId),
             eq(deposits.status, 'completed'),
             gte(deposits.depositDate, startDate),
             lte(deposits.depositDate, endDate),
@@ -354,6 +356,7 @@ export class DashboardAdminService {
     const report = await db
       .insert(reports)
       .values({
+        companyId,
         reportType: dto.reportType || 'custom',
         periodStart: startDate,
         periodEnd: endDate,

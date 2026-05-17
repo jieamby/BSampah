@@ -1,3 +1,4 @@
+export * from './companies.schema';
 export * from './users.schema';
 export * from './categories.schema';
 export * from './customers.schema';

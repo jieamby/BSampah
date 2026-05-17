@@ -9,6 +9,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { DepositsModule } from './modules/deposits/deposits.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { CompaniesModule } from './modules/companies/companies.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ]),
 
     AuthModule,
+    CompaniesModule,
     CustomersModule,
     CategoriesModule,
     WasteTypesModule,

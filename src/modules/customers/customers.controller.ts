@@ -7,27 +7,24 @@ import {
   Patch,
   Post,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
+  Request,
 } from '@nestjs/common';
-
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-
-import { CustomersService } from './customers.service';
-
-import { CreateCustomerDto } from './dto/create-customer.dto';
-
-import { UpdateCustomerDto } from './dto/update-customer.dto';
-
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-
-import { UploadedFile, UseInterceptors } from '@nestjs/common';
-
 import { diskStorage } from 'multer';
-
 import { extname } from 'path';
-
-import { ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CustomersService } from './customers.service';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @ApiTags('Customers')
 @ApiBearerAuth()
@@ -36,27 +33,16 @@ import { ApiConsumes, ApiBody } from '@nestjs/swagger';
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
-  @ApiOperation({
-    summary: 'Create Customer',
-  })
+  @ApiOperation({ summary: 'Create Customer' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        fullName: {
-          type: 'string',
-        },
-        phoneNumber: {
-          type: 'string',
-        },
-        address: {
-          type: 'string',
-        },
-        photo: {
-          type: 'string',
-          format: 'binary',
-        },
+        fullName: { type: 'string' },
+        phoneNumber: { type: 'string' },
+        address: { type: 'string' },
+        photo: { type: 'string', format: 'binary' },
       },
     },
   })
@@ -74,47 +60,37 @@ export class CustomersController {
   @Post()
   create(
     @UploadedFile() file: Express.Multer.File,
-
-    @Body()
-    dto: CreateCustomerDto,
+    @Body() dto: CreateCustomerDto,
+    @Request() req: any,
   ) {
-    return this.customersService.create(dto, file);
+    return this.customersService.create(dto, file, req.user.companyId);
   }
 
-  @ApiOperation({
-    summary: 'Get All Customers',
-  })
+  @ApiOperation({ summary: 'Get All Customers' })
   @Get()
-  findAll() {
-    return this.customersService.findAll();
+  findAll(@Request() req: any) {
+    return this.customersService.findAll(req.user.companyId);
   }
 
-  @ApiOperation({
-    summary: 'Get Customer Detail',
-  })
+  @ApiOperation({ summary: 'Get Customer Detail' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.customersService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.customersService.findOne(id, req.user.companyId);
   }
 
-  @ApiOperation({
-    summary: 'Update Customer',
-  })
+  @ApiOperation({ summary: 'Update Customer' })
   @Patch(':id')
   update(
     @Param('id') id: string,
-
-    @Body()
-    dto: UpdateCustomerDto,
+    @Body() dto: UpdateCustomerDto,
+    @Request() req: any,
   ) {
-    return this.customersService.update(id, dto);
+    return this.customersService.update(id, dto, req.user.companyId);
   }
 
-  @ApiOperation({
-    summary: 'Delete Customer',
-  })
+  @ApiOperation({ summary: 'Delete Customer' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.customersService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.customersService.remove(id, req.user.companyId);
   }
 }

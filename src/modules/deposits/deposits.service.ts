@@ -1,31 +1,34 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../../database/database';
 import { deposits } from '../../database/schema/deposits.schema';
 import { depositItems } from '../../database/schema/deposit-items.schema';
 import { customers } from '../../database/schema/customers.schema';
+import { wasteTypes } from '../../database/schema/waste-types.schema';
 import { CreateDepositDto } from './dto/create-deposit.dto';
 import { UpdateDepositDto } from './dto/update-deposit.dto';
-import { wasteTypes } from 'src/database/schema/waste-types.schema';
 
 @Injectable()
 export class DepositsService {
-  async create(dto: CreateDepositDto) {
-    // Validasi customer
+  async create(dto: CreateDepositDto, companyId: string) {
     const customer = await db
       .select()
       .from(customers)
-      .where(eq(customers.id, dto.customerId));
+      .where(
+        and(
+          eq(customers.id, dto.customerId),
+          eq(customers.companyId, companyId),
+        ),
+      );
 
-    if (!customer[0]) {
-      throw new NotFoundException('Customer not found');
-    }
-
-    if (!dto.items.length) {
+    if (!customer[0]) throw new NotFoundException('Customer not found');
+    if (!dto.items.length)
       throw new BadRequestException('Minimal 1 item deposit');
-    }
 
-    // Ambil harga semua waste type
     let totalAmount = 0;
     const itemsData: {
       wasteTypeId: string;
@@ -38,11 +41,17 @@ export class DepositsService {
       const wasteType = await db
         .select()
         .from(wasteTypes)
-        .where(eq(wasteTypes.id, item.wasteTypeId));
+        .where(
+          and(
+            eq(wasteTypes.id, item.wasteTypeId),
+            eq(wasteTypes.companyId, companyId),
+          ),
+        );
 
-      if (!wasteType[0]) {
-        throw new NotFoundException(`Waste type "${item.wasteTypeId}" not found`);
-      }
+      if (!wasteType[0])
+        throw new NotFoundException(
+          `Waste type "${item.wasteTypeId}" not found`,
+        );
 
       const pricePerKg = Number(wasteType[0].pricePerKg);
       const subtotal = pricePerKg * item.weight;
@@ -56,12 +65,11 @@ export class DepositsService {
       });
     }
 
-    // Insert deposit
     const depositCode = `DEP-${Date.now()}`;
-
     const deposit = await db
       .insert(deposits)
       .values({
+        companyId,
         depositCode,
         customerId: dto.customerId,
         totalAmount: String(totalAmount),
@@ -69,7 +77,6 @@ export class DepositsService {
       })
       .returning();
 
-    // Insert deposit items
     const items = await db
       .insert(depositItems)
       .values(
@@ -80,14 +87,11 @@ export class DepositsService {
       )
       .returning();
 
-    return {
-      ...deposit[0],
-      items,
-    };
+    return { ...deposit[0], items };
   }
 
-  async findAll() {
-    const result = await db
+  async findAll(companyId: string) {
+    return db
       .select({
         id: deposits.id,
         depositCode: deposits.depositCode,
@@ -104,12 +108,11 @@ export class DepositsService {
       })
       .from(deposits)
       .leftJoin(customers, eq(deposits.customerId, customers.id))
+      .where(eq(deposits.companyId, companyId))
       .orderBy(deposits.createdAt);
-
-    return result;
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const deposit = await db
       .select({
         id: deposits.id,
@@ -127,13 +130,10 @@ export class DepositsService {
       })
       .from(deposits)
       .leftJoin(customers, eq(deposits.customerId, customers.id))
-      .where(eq(deposits.id, id));
+      .where(and(eq(deposits.id, id), eq(deposits.companyId, companyId)));
 
-    if (!deposit[0]) {
-      throw new NotFoundException('Deposit not found');
-    }
+    if (!deposit[0]) throw new NotFoundException('Deposit not found');
 
-    // Get items
     const items = await db
       .select({
         id: depositItems.id,
@@ -149,31 +149,28 @@ export class DepositsService {
       .leftJoin(wasteTypes, eq(depositItems.wasteTypeId, wasteTypes.id))
       .where(eq(depositItems.depositId, id));
 
-    return {
-      ...deposit[0],
-      items,
-    };
+    return { ...deposit[0], items };
   }
 
-  async update(id: string, dto: UpdateDepositDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateDepositDto, companyId: string) {
+    await this.findOne(id, companyId);
 
     const deposit = await db
       .update(deposits)
       .set({ ...dto, updatedAt: new Date() })
-      .where(eq(deposits.id, id))
+      .where(and(eq(deposits.id, id), eq(deposits.companyId, companyId)))
       .returning();
 
     return deposit[0];
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, companyId: string) {
+    await this.findOne(id, companyId);
 
     await db
       .update(deposits)
       .set({ status: 'cancelled', updatedAt: new Date() })
-      .where(eq(deposits.id, id));
+      .where(and(eq(deposits.id, id), eq(deposits.companyId, companyId)));
 
     return { message: 'Deposit cancelled' };
   }
